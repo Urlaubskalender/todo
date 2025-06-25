@@ -31,7 +31,7 @@
     color: #007bff;
     margin-bottom: 0.5rem;
   }
-  
+
   /* Hamburger Menu */
   .hamburger-menu {
     position: fixed;
@@ -130,6 +130,20 @@
     margin-top: 0.5rem;
     color: red;
     min-height: 1.2em;
+  }
+
+  /* Auth Message */
+  .auth-message-main {
+    text-align: center; 
+    color: #6c757d; 
+    padding: 2rem;
+    display: none;
+  }
+
+  /* Disabled state for protected content */
+  .content-disabled {
+    opacity: 0.5;
+    pointer-events: none;
   }
 
   /* To-Do Items */
@@ -372,17 +386,26 @@
       <input id="menu-password-input" type="password" placeholder="Passwort" style="width: 100%; margin-bottom: 0.5rem;" />
       <button id="menu-login-btn" class="menu-item primary">Login</button>
       <button id="menu-logout-btn" class="menu-item danger" style="display:none;">Logout</button>
+      
+      <button id="menu-change-password-btn" class="menu-item">
+  <i class="fas fa-key"></i> Passwort ändern
+</button>
+      
+      
       <div id="menu-auth-message" style="color:red; font-size:0.8rem; margin-top:0.5rem;"></div>
     </div>
     <hr>
     <a href="https://urlaubskalender.github.io/Elite/" class="menu-item">
-      <i class="fas fa-calendar-alt"></i> Urlaubskalender
+      <i class="fas fa-calendar-alt"></i>  Zur Urlaubskalender
+    </a>
+    
+  <a href="https://urlaubskalender.github.io/Geburtstagskalender/" class="menu-item">
+      <i class="fas fa-tasks"></i> Zur Geburtstagskalender
     </a>
     
     <a href="https://urlaubskalender.github.io/Einkaufsliste/" class="menu-item">
-      <i class="fas fa-calendar-alt"></i> Einkaufsliste
-    </a>
-    
+      <i class="fas fa-tasks"></i> Zur Einkaufsliste
+    </a>  
     
     
     <button class="menu-item" onclick="showArchived = !showArchived; filterTodos()">
@@ -392,7 +415,18 @@
 </div>
 
 <div class="container">
-<h1><i class="fas fa-tasks"></i> To-Do Liste</h1>
+<center><h1><i class="fas fa-tasks"></i> To-Do Liste</h1>
+
+<div style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+ 
+</div>
+
+<div id="auth-message-main" class="auth-message-main">
+  Bitte melden Sie sich an, um Ihre To-Do Liste zu verwalten. Kein Login? kein Problem. Schreibt mir eine email, um eine kleine Spende wurde ich mich freuen. <a href="mailto:vigliotti1@outlook.de">Kontakt</a>
+</div>
+</center>
+
+<div id="main-content" class="content-disabled">
 
 <!-- Overall Progress -->
 <div class="overall-progress">
@@ -470,9 +504,6 @@
   <!-- Todos will be dynamically inserted here -->
 </div>
 
-<!-- Auth Message (for main content area) -->
-<div id="auth-message-main" style="text-align: center; color: #6c757d; padding: 2rem;">
-  Bitte melden Sie sich an, um Ihre To-Do Liste zu sehen.
 </div>
 
 </div>
@@ -481,6 +512,11 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
+
+import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
+
+
+
 import { getDatabase, ref, set, get, child, onValue, update, push, remove } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
 
 // Firebase Configuration (matching vacation calendar)
@@ -513,8 +549,29 @@ const menuLoginBtn = document.getElementById('menu-login-btn');
 const menuLogoutBtn = document.getElementById('menu-logout-btn');
 const menuAuthMessage = document.getElementById('menu-auth-message');
 const authMessageMain = document.getElementById('auth-message-main');
+const mainContent = document.getElementById('main-content');
 const todoList = document.getElementById('todoList');
 const addTodoForm = document.getElementById('addTodoForm');
+
+document.getElementById('menu-change-password-btn').addEventListener('click', () => {
+  if (!currentUser || !currentUser.email) {
+    alert('Sie müssen eingeloggt sein, um das Passwort zu ändern.');
+    return;
+  }
+
+  const confirmed = confirm(`Soll ein Link zum Zurücksetzen des Passworts an ${currentUser.email} gesendet werden?`);
+  if (!confirmed) return;
+
+  sendPasswordResetEmail(auth, currentUser.email)
+    .then(() => {
+      alert('Ein Link zum Zurücksetzen des Passworts wurde gesendet.');
+      document.getElementById('menuDropdown').classList.remove('show');
+    })
+    .catch((error) => {
+      alert('Fehler beim Senden des Links: ' + error.message);
+    });
+});
+
 
 // Authentication Functions
 menuLoginBtn.onclick = async () => {
@@ -546,6 +603,7 @@ menuLoginBtn.onclick = async () => {
     menuLoginBtn.style.display = 'none';
     menuLogoutBtn.style.display = 'block';
     authMessageMain.style.display = 'none';
+    mainContent.classList.remove('content-disabled');
     
     // Load todos
     loadTodos();
@@ -566,6 +624,7 @@ menuLogoutBtn.onclick = async () => {
     menuLoginBtn.style.display = 'block';
     menuLogoutBtn.style.display = 'none';
     authMessageMain.style.display = 'block';
+    mainContent.classList.add('content-disabled');
     
     // Clear data
     currentUser = null;
@@ -598,6 +657,7 @@ auth.onAuthStateChanged(async (user) => {
         menuLoginBtn.style.display = 'none';
         menuLogoutBtn.style.display = 'block';
         authMessageMain.style.display = 'none';
+        mainContent.classList.remove('content-disabled');
         
         loadTodos();
       }
@@ -615,6 +675,7 @@ auth.onAuthStateChanged(async (user) => {
     menuLoginBtn.style.display = 'block';
     menuLogoutBtn.style.display = 'none';
     authMessageMain.style.display = 'block';
+    mainContent.classList.add('content-disabled');
     
     renderTodos();
     updateProgress();
